@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rock Paper Scissors</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #17171a;
+      --surface2: #1f1f24;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.14);
+      --text: #f0f0f0;
+      --muted: #888;
+      --accent: #c8ff00;
+      --accent-dim: rgba(200,255,0,0.12);
+      --win: #00e5a0;
+      --win-bg: rgba(0,229,160,0.1);
+      --lose: #ff4f4f;
+      --lose-bg: rgba(255,79,79,0.1);
+      --draw: #888;
+      --draw-bg: rgba(136,136,136,0.1);
+      --streak: #a78bfa;
+      --streak-bg: rgba(167,139,250,0.12);
+      --mono: 'Space Mono', monospace;
+      --display: 'Syne', sans-serif;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: var(--display);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* Subtle bg grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    /* HEADER */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .title {
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+    .title span { color: var(--accent); }
+    .subtitle {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* STATS */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 1.25rem;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.9rem 0.5rem;
+      text-align: center;
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    .stat-val {
+      font-size: 1.7rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .stat-val.rounds { color: var(--text); }
+    .stat-val.wins { color: var(--win); }
+    .stat-val.losses { color: var(--lose); }
+    .stat-val.draws { color: var(--muted); }
+
+    /* STREAK BANNER */
+    .streak-bar {
+      background: var(--streak-bg);
+      border: 1px solid rgba(167,139,250,0.25);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 1rem;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--streak);
+      margin-bottom: 1.25rem;
+      display: none;
+      animation: fadein 0.3s ease;
+    }
+    .streak-bar.show { display: block; }
+    @keyframes fadein { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ARENA */
+    .arena {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem 1.5rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .vs-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .side { flex: 1; text-align: center; }
+    .side-label {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .emoji-box {
+      font-size: 3.5rem;
+      line-height: 1;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s;
+    }
+    .emoji-box.pop { animation: pop 0.35s cubic-bezier(.36,.07,.19,.97); }
+    @keyframes pop {
+      0%{transform:scale(1)} 30%{transform:scale(1.35)} 60%{transform:scale(0.9)} 100%{transform:scale(1)}
+    }
+    .vs-text {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--border2);
+      letter-spacing: 0.05em;
+    }
+
+    /* RESULT */
+    .result {
+      text-align: center;
+      padding: 0.7rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+    }
+    .result.idle { background: var(--surface2); color: var(--muted); }
+    .result.win { background: var(--win-bg); color: var(--win); }
+    .result.lose { background: var(--lose-bg); color: var(--lose); }
+    .result.draw { background: var(--draw-bg); color: var(--draw); }
+
+    /* CHOICES */
+    .choices {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .choice-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 1rem 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      cursor: pointer;
+      color: var(--text);
+      font-family: var(--display);
+      font-size: 0.8rem;
+      font-weight: 700;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      letter-spacing: 0.02em;
+    }
+    .choice-btn .em { font-size: 2.1rem; }
+    .choice-btn:hover {
+      background: var(--surface2);
+      border-color: var(--accent);
+    }
+    .choice-btn:active { transform: scale(0.95); }
+
+    /* RESET */
+    .reset-btn {
+      width: 100%;
+      padding: 0.65rem;
+      background: transparent;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      margin-bottom: 1.5rem;
+    }
+    .reset-btn:hover { background: var(--surface2); color: var(--text); }
+
+    /* HISTORY */
+    .history-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .history-head {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2) transparent;
+    }
+    .h-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      animation: fadein 0.25s ease;
+    }
+    .h-round {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      color: var(--muted);
+      min-width: 28px;
+    }
+    .h-moves { flex: 1; color: var(--text); }
+    .h-badge {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      padding: 3px 10px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+    }
+    .h-badge.win { background: var(--win-bg); color: var(--win); }
+    .h-badge.lose { background: var(--lose-bg); color: var(--lose); }
+    .h-badge.draw { background: var(--draw-bg); color: var(--draw); }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      padding: 1.5rem 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 400px) {
+      .stats { grid-template-columns: repeat(2,1fr); }
+      .emoji-box { font-size: 2.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <header>
+      <h1 class="title">Rock<span>.</span> Paper<span>.</span> Scissors<span>.</span></h1>
+      <p class="subtitle">— Choose your move —</p>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Rounds</div>
+        <div class="stat-val rounds" id="s-rounds">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Wins</div>
+        <div class="stat-val wins" id="s-wins">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Losses</div>
+        <div class="stat-val losses" id="s-losses">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Draws</div>
+        <div class="stat-val draws" id="s-draws">0</div>
+      </div>
+    </div>
+
+    <!-- Streak -->
+    <div class="streak-bar" id="streak-bar">🔥 <span id="streak-text"></span></div>
+
+    <!-- Arena -->
+    <div class="arena">
+      <div class="vs-row">
+        <div class="side">
+          <div class="side-label">You</div>
+          <div class="emoji-box" id="p-display">❓</div>
+        </div>
+        <div class="vs-text">VS</div>
+        <div class="side">
+          <div class="side-label">Computer</div>
+          <div class="emoji-box" id="c-display">❓</div>
+        </div>
+      </div>
+      <div class="result idle" id="result">Pick a move to begin!</div>
+    </div>
+
+    <!-- Choices -->
+    <div class="choices">
+      <button class="choice-btn" onclick="play('rock')">
+        <span class="em">🪨</span>Rock
+      </button>
+      <button class="choice-btn" onclick="play('paper')">
+        <span class="em">📄</span>Paper
+      </button>
+      <button class="choice-btn" onclick="play('scissors')">
+        <span class="em">✂️</span>Scissors
+      </button>
+    </div>
+
+    <!-- Reset -->
+    <button class="reset-btn" onclick="resetGame()">↺ Reset Game</button>
+
+    <!-- History -->
+    <div class="history-wrap">
+      <div class="history-head">Move History</div>
+      <div class="history-list" id="history-list">
+        <div class="empty" id="empty-msg">No rounds played yet</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const emo = { rock: '🪨', paper: '📄', scissors: '✂️' };
+    const all = ['rock', 'paper', 'scissors'];
+    let g = { rounds: 0, wins: 0, losses: 0, draws: 0, streak: 0, history: [] };
+
+    function getResult(p, c) {
+      if (p === c) return 'draw';
+      if ((p==='rock'&&c==='scissors')||(p==='paper'&&c==='rock')||(p==='scissors'&&c==='paper')) return 'win';
+      return 'lose';
+    }
+
+    function play(choice) {
+      const cpu = all[Math.floor(Math.random() * 3)];
+      const res = getResult(choice, cpu);
+
+      g.rounds++;
+      if (res === 'win') { g.wins++; g.streak++; }
+      else if (res === 'lose') { g.losses++; g.streak = 0; }
+      else { g.draws++; g.streak = 0; }
+
+      g.history.unshift({ n: g.rounds, p: choice, c: cpu, r: res });
+
+      // Animate
+      ['p-display','c-display'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove('pop');
+        void el.offsetWidth;
+        el.classList.add('pop');
+      });
+      document.getElementById('p-display').textContent = emo[choice];
+      document.getElementById('c-display').textContent = emo[cpu];
+
+      // Result
+      const msgs = {
+        win: `You win! ${emo[choice]} beats ${emo[cpu]}`,
+        lose: `You lose! ${emo[cpu]} beats ${emo[choice]}`,
+        draw: `Draw! Both picked ${emo[choice]}`
+      };
+      const r = document.getElementById('result');
+      r.className = 'result ' + res;
+      r.textContent = msgs[res];
+
+      updateUI();
+    }
+
+    function updateUI() {
+      document.getElementById('s-rounds').textContent = g.rounds;
+      document.getElementById('s-wins').textContent = g.wins;
+      document.getElementById('s-losses').textContent = g.losses;
+      document.getElementById('s-draws').textContent = g.draws;
+
+      const bar = document.getElementById('streak-bar');
+      if (g.streak >= 2) {
+        bar.classList.add('show');
+        document.getElementById('streak-text').textContent = g.streak + '-win streak! Keep going!';
+      } else {
+        bar.classList.remove('show');
+      }
+
+      const list = document.getElementById('history-list');
+      if (g.history.length === 0) {
+        list.innerHTML = '<div class="empty" id="empty-msg">No rounds played yet</div>';
+        return;
+      }
+      list.innerHTML = g.history.map(h =>
+        `<div class="h-item">
+          <span class="h-round">#${h.n}</span>
+          <span class="h-moves">You ${emo[h.p]} &nbsp;vs&nbsp; CPU ${emo[h.c]}</span>
+          <span class="h-badge ${h.r}">${h.r === 'win' ? 'Win' : h.r === 'lose' ? 'Loss' : 'Draw'}</span>
+        </div>`
+      ).join('');
+    }
+
+    function resetGame() {
+      g = { rounds: 0, wins: 0, losses: 0, draws: 0, streak: 0, history: [] };
+      document.getElementById('p-display').textContent = '❓';
+      document.getElementById('c-display').textContent = '❓';
+      const r = document.getElementById('result');
+      r.className = 'result idle';
+      r.textContent = 'Pick a move to begin!';
+      document.getElementById('streak-bar').classList.remove('show');
+      updateUI();
+    }
+  </script>
+</body>
+</html>
